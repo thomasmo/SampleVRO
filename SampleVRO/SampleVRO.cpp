@@ -1,21 +1,21 @@
-// https://docs.microsoft.com/en-us/windows/desktop/LearnWin32/your-first-direct2d-program
-// https://docs.microsoft.com/en-us/windows/desktop/Direct2D/how-to--draw-text
-// https://docs.microsoft.com/en-us/windows/desktop/direct2d/direct2d-and-direct3d-interoperation-overview
+// SampleVRO.cpp
+// 
+// Sample Win32 app built with D3D11 + D2D for use as a VROverlay with OpenVR
+// Also takes keyboard input and draws text on the screen.
+//
+// Code in this file is based upon the following samples
+// - https://docs.microsoft.com/en-us/windows/desktop/LearnWin32/your-first-direct2d-program
+//
+// This file contains definition of BaseWindow and MainWindow, which register with the OS to receive and
+// respond to window messages.
 
 #include "stdafx.h"
 #include "OpenVRHelper.h"
 #include "DrawHelper.h"
 
-#include <windows.h>
-#include <d2d1.h>
-#include <d2d1_1.h>
-#include <d3d11_1.h>
-#include <dwrite.h>
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "dwrite")
 #pragma comment(lib, "d3d11")
-
-
 
 template <class DERIVED_TYPE> 
 class BaseWindow
@@ -109,11 +109,6 @@ public:
 	PCWSTR  ClassName() const { return L"Circle Window Class"; }
 	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
-
-// Recalculate drawing layout when the size of the window changes.
-
-
-
 
 void MainWindow::OnPaint()
 {

@@ -18,6 +18,7 @@ public:
 
 	void Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer);
 	void CalculateLayout();
+	void Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex);
 
 	void DiscardGraphicsResources();
 	void Shutdown();

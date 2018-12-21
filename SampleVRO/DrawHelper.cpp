@@ -1,7 +1,18 @@
+// DrawHelper.cpp
+//
+// This file contains code to draw to the screen (via a swapchain in D3D), specifically a green ellipse as
+// well as any text typed by the user.
+//
+// Code in this file is based upon the following samples
+// - https://docs.microsoft.com/en-us/windows/desktop/Direct2D/how-to--draw-text
+// - https://docs.microsoft.com/en-us/windows/desktop/direct2d/direct2d-and-direct3d-interoperation-overview
+
 #include "stdafx.h"
 #include "DrawHelper.h"
-#include "OpenVRHelper.h"
 
+#include "OpenVRHelper.h"
+#include <wincodec.h>
+#include "dxtk/Inc/ScreenGrab.h"
 
 DrawHelper::DrawHelper():
 	pFactory(nullptr),
@@ -224,6 +235,7 @@ HRESULT DrawHelper::CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper)
 	return hr;
 }
 
+// Recalculate drawing layout when the size of the window changes.
 void DrawHelper::CalculateLayout()
 {
 	if (pRenderTarget != NULL)
@@ -267,7 +279,7 @@ void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer
 				if (hr == S_OK)
 				{
 					povrHelper->SetOverlayTexture(pTex);
-					povrHelper->Save(pDevice3dContext, pTex);
+					Save(pDevice3dContext, pTex);
 				}
 			}
 		}
@@ -276,4 +288,21 @@ void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer
 			DiscardGraphicsResources();
 		}
 	}
+}
+
+// Save the texture to disk
+void DrawHelper::Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex)
+{
+	// https://github.com/Microsoft/DirectXTK
+	DirectX::SaveWICTextureToFile(
+		pContext,
+		pTex,
+		GUID_ContainerFormatBmp,
+		L"SampleVRO.bmp"
+	);
+
+	//vr::VREvent_t vrEvent;
+	//vr::VROverlay()->PollNextOverlayEvent(m_ulOverlayHandle, &vrEvent, sizeof(vrEvent));
+
+	//_RPTF1(_CRT_WARN, "VREvent %d\n", vrEvent.eventType);
 }

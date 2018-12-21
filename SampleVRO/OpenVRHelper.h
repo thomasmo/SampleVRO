@@ -18,7 +18,6 @@ public:
 	}
 
 	void Init(ID3D11Texture2D* pTex);
-	void Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex);
 	vr::VROverlayError SetOverlayTexture(ID3D11Texture2D* pTex);
 
 private:
