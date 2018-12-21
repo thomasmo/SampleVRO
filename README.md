@@ -6,3 +6,6 @@ For initial user interaction, this app draws text on the screen that is typed fr
 
 VS solution has been testing in v2017. The openvr_api.dll is needed in the same directory as the built SampleVRO.exe to run.
 Note that (for debugging purposes) the texture is written to disk to verify what is sent to the VROverlay APIs.
+
+**Note**
+This app must run on the same GPU as the OpenVR host for the texture to present.
