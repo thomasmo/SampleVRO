@@ -17,7 +17,7 @@ public:
 
 	HRESULT Setup();	
 
-	void Draw(HWND hwnd, OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer);
+	void Draw(HWND hwnd, OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints);
 	void CalculateLayout();
 	void Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex);
 
@@ -40,6 +40,7 @@ private:
 	ID2D1HwndRenderTarget   *pRenderTargetHwnd;
 	ID2D1SolidColorBrush    *pBrush;
 	ID2D1SolidColorBrush    *pBrushText;
+	ID2D1SolidColorBrush    *pBrushClick;
 	D2D1_ELLIPSE            ellipse;
 
 	ID3D11Device			*pDevice3d;

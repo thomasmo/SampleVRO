@@ -23,6 +23,7 @@ DrawHelper::DrawHelper():
 	pRenderTargetHwnd(nullptr),
 	pBrush(nullptr),
 	pBrushText(nullptr),
+	pBrushClick(nullptr),
 	pDevice3d(nullptr),
 	pDevice3dContext(nullptr),
 	pTex(nullptr),
@@ -69,6 +70,7 @@ void DrawHelper::DiscardGraphicsResources()
 	SafeRelease(&pRenderTargetHwnd);
 	SafeRelease(&pBrush);
 	SafeRelease(&pBrushText);
+	SafeRelease(&pBrushClick);
 	SafeRelease(&pTex);
 	SafeRelease(&pSurface);
 	SafeRelease(&pSwapChain);
@@ -80,7 +82,7 @@ HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 {
 	// Ask OpenVR which adapter it uses so that the swapchain can be created
 	// with the same adapter.
-	int32_t dxgiAdapterIndex;
+	int32_t dxgiAdapterIndex = -1;
 	povrHelper->Init(&dxgiAdapterIndex);
 
 	IDXGIFactory1 * pDxgiFactory = nullptr;
@@ -241,8 +243,12 @@ HRESULT DrawHelper::CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper)
 						hr = pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0.7f, 0, 0), &pBrushText);
 						if (SUCCEEDED(hr))
 						{
-							CalculateLayout();
-							povrHelper->CreateOverlay(pTex);
+							hr = pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0.7f), &pBrushClick);
+							if (SUCCEEDED(hr))
+							{
+								CalculateLayout();
+								povrHelper->CreateOverlay(pTex);
+							}
 						}
 					}
 				}
@@ -266,8 +272,10 @@ void DrawHelper::CalculateLayout()
 	}
 }
 
-void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer)
+void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints)
 {
+	static UINT s_clickWidth = 5;
+
 	HRESULT hr = CreateGraphicsResources(hwnd, povrHelper);
 	if (SUCCEEDED(hr))
 	{
@@ -285,6 +293,28 @@ void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer
 			pBrushText
 		);
 
+		if (cPoints == 1)
+		{
+			// For the first click, draw a dot at the click location
+			pRenderTarget->FillEllipse(
+				D2D1::Ellipse(D2D1::Point2F(pPoints[0].x, pPoints[0].y), s_clickWidth, s_clickWidth),
+				pBrushClick
+			);
+		}
+		else if (cPoints > 1)
+		{
+			// For subsequent clicks, draw lines connecting at each click location
+			for (UINT n = 1; n < cPoints; n++)
+			{
+				pRenderTarget->DrawLine(
+					D2D1::Point2F(pPoints[n - 1].x, pPoints[n - 1].y),
+					D2D1::Point2F(pPoints[n].x, pPoints[n].y),
+					pBrushClick,
+					s_clickWidth
+				);
+			}
+		}
+
 		hr = pRenderTarget->EndDraw();
 		if (hr == S_OK)
 		{
@@ -293,7 +323,7 @@ void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer
 			{
 				if (hr == S_OK)
 				{
-					// TODO: Is this needed everytime the texture is updated?
+					// TODO: Is this needed everytime the texture is updated? Maybe if swapchain contains multiple backings?
 					povrHelper->SetOverlayTexture(pTex);
 					// Save texture to disk (for debugging purposes)
 					//Save(pDevice3dContext, pTex);

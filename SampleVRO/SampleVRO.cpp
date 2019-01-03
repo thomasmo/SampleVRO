@@ -92,6 +92,8 @@ class MainWindow : public BaseWindow<MainWindow>
 {
 	WCHAR					pchTypeBuffer[100] = { 0 };
 	UINT					cchTypeBuffer;
+	POINTS					rgPoints[25] = { 0 };
+	UINT					cPoints;
 
 	DrawHelper				drawHelper;
 	OpenVRHelper			ovrHelper;
@@ -99,11 +101,12 @@ class MainWindow : public BaseWindow<MainWindow>
 	void    OnPaint();
 	void    Resize();
 	void	SaveChar(WPARAM wParam);
+	void	SavePoint(WPARAM wParam, LPARAM lParam);
 
 public:
-
 	MainWindow() :
-		cchTypeBuffer(0)
+		cchTypeBuffer(0),
+		cPoints(0)
 	{
 	}
 
@@ -113,7 +116,7 @@ public:
 
 void MainWindow::OnPaint()
 {
-	drawHelper.Draw(m_hwnd, &ovrHelper, pchTypeBuffer, cchTypeBuffer);
+	drawHelper.Draw(m_hwnd, &ovrHelper, pchTypeBuffer, cchTypeBuffer, rgPoints, cPoints);
 }
 
 void MainWindow::Resize()
@@ -125,6 +128,12 @@ void MainWindow::SaveChar(WPARAM wParam)
 {
 	pchTypeBuffer[cchTypeBuffer] = (wchar_t)wParam;
 	cchTypeBuffer = (cchTypeBuffer + 1) % ARRAYSIZE(pchTypeBuffer);
+}
+
+void MainWindow::SavePoint(WPARAM wParam, LPARAM lParam)
+{
+	rgPoints[cPoints] = MAKEPOINTS(lParam);
+	cPoints = (cPoints + 1) % ARRAYSIZE(rgPoints);
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
@@ -175,7 +184,11 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_CHAR:
 		SaveChar(wParam);
 		OnPaint();
+		return 0;
 
+	case WM_LBUTTONDOWN:
+		SavePoint(wParam, lParam);
+		OnPaint();
 		return 0;
 	}
 	return DefWindowProc(m_hwnd, uMsg, wParam, lParam);
