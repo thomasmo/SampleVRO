@@ -76,56 +76,74 @@ void DrawHelper::DiscardGraphicsResources()
 	SafeRelease(&pTextFormat);
 }
 
-HRESULT DrawHelper::CreateD3DResources(HWND hwnd)
+HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 {
-	RECT rc;
-	GetClientRect(hwnd, &rc);
+	// Ask OpenVR which adapter it uses so that the swapchain can be created
+	// with the same adapter.
+	int32_t dxgiAdapterIndex;
+	povrHelper->Init(&dxgiAdapterIndex);
 
-	D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
-
-	D3D_FEATURE_LEVEL levels [] = { D3D_FEATURE_LEVEL_11_1 };
-	D3D_FEATURE_LEVEL deviceLevel = D3D_FEATURE_LEVEL_11_1;
-
-	DXGI_SWAP_CHAIN_DESC descSwapChain = { 0 };
-	descSwapChain.BufferDesc.Width = size.width;
-	descSwapChain.BufferDesc.Height = size.height;
-	descSwapChain.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	descSwapChain.BufferDesc.RefreshRate.Numerator = 60;
-	descSwapChain.BufferDesc.RefreshRate.Denominator = 1;
-	descSwapChain.SampleDesc.Count = 1;
-	descSwapChain.SampleDesc.Quality = 0;
-	descSwapChain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	descSwapChain.BufferCount = 1;
-	descSwapChain.OutputWindow = hwnd;
-	descSwapChain.Windowed = TRUE;
-
-	HRESULT hr = D3D11CreateDeviceAndSwapChain(
-		nullptr, //pAdapter,
-		D3D_DRIVER_TYPE_HARDWARE,
-		nullptr, // Software
-		D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
-		levels,
-		ARRAYSIZE(levels),
-		D3D11_SDK_VERSION,
-		&descSwapChain,
-		&pSwapChain,
-		&pDevice3d,
-		&deviceLevel,
-		&pDevice3dContext
-	);
-
-	if (SUCCEEDED(hr))
+	IDXGIFactory1 * pDxgiFactory = nullptr;
+	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&pDxgiFactory));
+	if (hr == S_OK)
 	{
-		// Get a DXGI device interface from the D3D device.
-		hr = pDevice3d->QueryInterface(&pDxgiDevice);
+		IDXGIAdapter1* pDxgiAdapter = nullptr;
+		hr = pDxgiFactory->EnumAdapters1(dxgiAdapterIndex, &pDxgiAdapter);
 		if (hr == S_OK)
 		{
-			hr = pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pSurface));
-			if (hr == S_OK)
+			RECT rc;
+			GetClientRect(hwnd, &rc);
+
+			D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
+
+			D3D_FEATURE_LEVEL levels [] = { D3D_FEATURE_LEVEL_11_1 };
+			D3D_FEATURE_LEVEL deviceLevel = D3D_FEATURE_LEVEL_11_1;
+
+			DXGI_SWAP_CHAIN_DESC descSwapChain = { 0 };
+			descSwapChain.BufferDesc.Width = size.width;
+			descSwapChain.BufferDesc.Height = size.height;
+			descSwapChain.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			descSwapChain.BufferDesc.RefreshRate.Numerator = 60;
+			descSwapChain.BufferDesc.RefreshRate.Denominator = 1;
+			descSwapChain.SampleDesc.Count = 1;
+			descSwapChain.SampleDesc.Quality = 0;
+			descSwapChain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+			descSwapChain.BufferCount = 1;
+			descSwapChain.OutputWindow = hwnd;
+			descSwapChain.Windowed = TRUE;
+
+			hr = D3D11CreateDeviceAndSwapChain(
+				pDxgiAdapter,
+				D3D_DRIVER_TYPE_UNKNOWN,
+				nullptr, // Software
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+				levels,
+				ARRAYSIZE(levels),
+				D3D11_SDK_VERSION,
+				&descSwapChain,
+				&pSwapChain,
+				&pDevice3d,
+				&deviceLevel,
+				&pDevice3dContext
+			);
+
+			if (SUCCEEDED(hr))
 			{
-				hr = pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pTex));
+				// Get a DXGI device interface from the D3D device.
+				hr = pDevice3d->QueryInterface(&pDxgiDevice);
+				if (hr == S_OK)
+				{
+					hr = pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pSurface));
+					if (hr == S_OK)
+					{
+						hr = pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pTex));
+					}
+				}
 			}
+			SafeRelease(&pDxgiAdapter);
 		}
+
+		SafeRelease(&pDxgiFactory);
 	}
 
 	return hr;
@@ -186,7 +204,7 @@ HRESULT DrawHelper::CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper)
 	HRESULT hr = S_OK;
 	if (pRenderTarget == NULL)
 	{
-		hr = CreateD3DResources(hwnd);
+		hr = CreateD3DResources(hwnd, povrHelper);
 		if (hr == S_OK)
 		{
 			hr = CreateDWriteResources();
@@ -224,7 +242,7 @@ HRESULT DrawHelper::CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper)
 						if (SUCCEEDED(hr))
 						{
 							CalculateLayout();
-							povrHelper->Init(pTex);
+							povrHelper->CreateOverlay(pTex);
 						}
 					}
 				}
@@ -268,18 +286,17 @@ void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer
 		);
 
 		hr = pRenderTarget->EndDraw();
-
 		if (hr == S_OK)
 		{
 			hr = pSwapChain->Present(0, 0);
 			if (hr == S_OK)
 			{
-				//ID3D11Texture2D* pTex = nullptr;
-				//hr = pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pTex));
 				if (hr == S_OK)
 				{
+					// TODO: Is this needed everytime the texture is updated?
 					povrHelper->SetOverlayTexture(pTex);
-					Save(pDevice3dContext, pTex);
+					// Save texture to disk (for debugging purposes)
+					//Save(pDevice3dContext, pTex);
 				}
 			}
 		}

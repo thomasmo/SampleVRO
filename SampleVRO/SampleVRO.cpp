@@ -16,6 +16,7 @@
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "dwrite")
 #pragma comment(lib, "d3d11")
+#pragma comment(lib, "dxgi")
 
 template <class DERIVED_TYPE> 
 class BaseWindow

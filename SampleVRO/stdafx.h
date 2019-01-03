@@ -28,3 +28,4 @@ template <class T> void SafeRelease(T **ppT)
 
 
 // reference additional headers your program requires here
+#include <assert.h>

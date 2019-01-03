@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OpenVRHelper.h"
+#include <dxgi.h>
 #include <d2d1.h>
 #include <d2d1_1.h>
 #include <d3d11_1.h>
@@ -16,7 +17,7 @@ public:
 
 	HRESULT Setup();	
 
-	void Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer);
+	void Draw(HWND hwnd, OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer);
 	void CalculateLayout();
 	void Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex);
 
@@ -24,8 +25,8 @@ public:
 	void Shutdown();
 
 private:
-	HRESULT CreateGraphicsResources(HWND hwnd,  OpenVRHelper* povrHelper);
-	HRESULT CreateD3DResources(HWND hwnd);
+	HRESULT CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper);
+	HRESULT CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper);
 	HRESULT CreateD2DResources();
 	HRESULT CreateDWriteResources();
 
@@ -45,8 +46,8 @@ private:
 	ID3D11DeviceContext		*pDevice3dContext;
 	ID3D11Texture2D			*pTex;
 
-	IDXGIDevice				*pDxgiDevice;
-	IDXGISurface			*pSurface;
+	IDXGIDevice1			*pDxgiDevice;
+	IDXGISurface1			*pSurface;
 	IDXGISwapChain			*pSwapChain;
 
 	IDWriteFactory			*pDWriteFactory;
