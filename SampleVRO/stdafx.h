@@ -29,3 +29,6 @@ template <class T> void SafeRelease(T **ppT)
 
 // reference additional headers your program requires here
 #include <assert.h>
+
+// https://stackoverflow.com/questions/293723/how-could-i-create-a-custom-windows-message
+#define WM_VRPOLL (WM_USER+0)

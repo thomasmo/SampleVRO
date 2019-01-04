@@ -13,21 +13,28 @@ public:
 		m_pHMD(nullptr),
 		m_dxgiAdapterIndex(-1),
 		m_ulOverlayHandle(vr::k_ulOverlayHandleInvalid),
-		m_ulOverlayThumbnailHandle(vr::k_ulOverlayHandleInvalid)
+		m_ulOverlayThumbnailHandle(vr::k_ulOverlayHandleInvalid),
+		m_hwnd(nullptr),
+		m_rcHwnd()
 	{
 	}
 	~OpenVRHelper()
 	{
 	}
 
-	void Init(int32_t *pnAdapterIndex );
+	void Init(HWND hwnd, RECT rc, int32_t *pnAdapterIndex);
 	void CreateOverlay(ID3D11Texture2D* pTex);
 	vr::VROverlayError SetOverlayTexture(ID3D11Texture2D* pTex);
+	
+	void PostVRPollMsg();
+	void OverlayPump();
 
 private:
 	vr::IVRSystem * m_pHMD;
 	int32_t m_dxgiAdapterIndex;
 	vr::VROverlayHandle_t m_ulOverlayHandle;
 	vr::VROverlayHandle_t m_ulOverlayThumbnailHandle;
+	HWND m_hwnd;
+	RECT m_rcHwnd;
 };
 

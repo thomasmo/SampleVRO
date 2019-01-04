@@ -117,6 +117,7 @@ public:
 void MainWindow::OnPaint()
 {
 	drawHelper.Draw(m_hwnd, &ovrHelper, pchTypeBuffer, cchTypeBuffer, rgPoints, cPoints);
+	ovrHelper.PostVRPollMsg();
 }
 
 void MainWindow::Resize()
@@ -140,7 +141,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
 	MainWindow win;
 	
-
 	if (!win.Create(L"SampleVRO", WS_OVERLAPPEDWINDOW, 0, 50, 50, 640, 320))
 	{
 		return 0;
@@ -189,6 +189,10 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONDOWN:
 		SavePoint(wParam, lParam);
 		OnPaint();
+		return 0;
+
+	case WM_VRPOLL:
+		ovrHelper.OverlayPump();
 		return 0;
 	}
 	return DefWindowProc(m_hwnd, uMsg, wParam, lParam);

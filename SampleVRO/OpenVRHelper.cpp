@@ -14,8 +14,11 @@
 #include <d3d11_1.h>
 
 
-void OpenVRHelper::Init(int32_t *pnAdapterIndex)
+void OpenVRHelper::Init(HWND hwnd, RECT rcHwnd, int32_t *pnAdapterIndex)
 {
+	m_hwnd = hwnd;
+	m_rcHwnd = rcHwnd;
+	
 	// COpenVROverlayController::Init
 	vr::EVRInitError eError = vr::VRInitError_None;
 	m_pHMD = vr::VR_Init( &eError, vr::VRApplication_Overlay );
@@ -62,7 +65,14 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 						vr::VROverlay()->GetOverlayKey(m_ulOverlayHandle, rgchKey, ARRAYSIZE(rgchKey), &overlayError);
 						if (overlayError == vr::VROverlayError_None)
 						{
-							vr::VROverlay()->ShowDashboard(rgchKey);
+							vr::HmdVector2_t vecWindowSize = { (float)m_rcHwnd.right, (float)m_rcHwnd.bottom};
+							overlayError = vr::VROverlay()->SetOverlayMouseScale( m_ulOverlayHandle, &vecWindowSize );
+							if (overlayError == vr::VROverlayError_None)
+							{
+								vr::VROverlay()->ShowDashboard(rgchKey);
+
+								PostVRPollMsg();
+							}
 						}
 					}
 				}
@@ -75,7 +85,44 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 	{
 		assert(!"Failed to get VROverlay");
 	}
-	
+}
+
+// Post a custom VRPOLL msg for asynchronous processing
+void OpenVRHelper::PostVRPollMsg()
+{
+	bool success = PostMessage(m_hwnd, WM_VRPOLL, 0, 0);
+	assert(success || !"Failed to post VR msg");
+}
+
+// COpenVROverlayController::OnTimeoutPumpEvents()
+void OpenVRHelper::OverlayPump()
+{
+	if (vr::VROverlay() != nullptr)
+	{
+		vr::VREvent_t vrEvent;
+		while (vr::VROverlay()->PollNextOverlayEvent(m_ulOverlayHandle, &vrEvent, sizeof(vrEvent)))
+		{
+			switch (vrEvent.eventType)
+			{
+				case vr::VREvent_MouseButtonDown:
+				{
+					vr::VREvent_Mouse_t data = vrEvent.data.mouse;
+					_RPTF1(_CRT_WARN, "VREvent_t.data.mouse (%f, %f)\n", data.x, data.y);
+					
+					// Windows' origin is top-left, whereas OpenVR's origin is bottom-left, so transform
+					// the y-coordinate.
+					POINT pt;
+					pt.x = data.x;
+					pt.y = m_rcHwnd.bottom - data.y;
+
+					// Route this back to the main window for processing
+					PostMessage(m_hwnd, WM_LBUTTONDOWN, 0, POINTTOPOINTS(pt));
+				
+					break;
+				}
+			}
+		}
+	}
 }
 
 vr::VROverlayError OpenVRHelper::SetOverlayTexture(ID3D11Texture2D* pTex)

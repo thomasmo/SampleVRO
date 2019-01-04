@@ -80,10 +80,13 @@ void DrawHelper::DiscardGraphicsResources()
 
 HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 {
+	RECT rc;
+	GetClientRect(hwnd, &rc);
+
 	// Ask OpenVR which adapter it uses so that the swapchain can be created
 	// with the same adapter.
 	int32_t dxgiAdapterIndex = -1;
-	povrHelper->Init(&dxgiAdapterIndex);
+	povrHelper->Init(hwnd, rc, &dxgiAdapterIndex);
 
 	IDXGIFactory1 * pDxgiFactory = nullptr;
 	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&pDxgiFactory));
@@ -93,9 +96,6 @@ HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 		hr = pDxgiFactory->EnumAdapters1(dxgiAdapterIndex, &pDxgiAdapter);
 		if (hr == S_OK)
 		{
-			RECT rc;
-			GetClientRect(hwnd, &rc);
-
 			D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
 
 			D3D_FEATURE_LEVEL levels [] = { D3D_FEATURE_LEVEL_11_1 };
@@ -274,7 +274,7 @@ void DrawHelper::CalculateLayout()
 
 void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints)
 {
-	static UINT s_clickWidth = 5;
+	static float s_clickWidth = 5.0f;
 
 	HRESULT hr = CreateGraphicsResources(hwnd, povrHelper);
 	if (SUCCEEDED(hr))
@@ -347,9 +347,4 @@ void DrawHelper::Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex)
 		GUID_ContainerFormatBmp,
 		L"SampleVRO.bmp"
 	);
-
-	//vr::VREvent_t vrEvent;
-	//vr::VROverlay()->PollNextOverlayEvent(m_ulOverlayHandle, &vrEvent, sizeof(vrEvent));
-
-	//_RPTF1(_CRT_WARN, "VREvent %d\n", vrEvent.eventType);
 }
