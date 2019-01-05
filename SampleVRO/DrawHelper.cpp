@@ -118,7 +118,7 @@ HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 				pDxgiAdapter,
 				D3D_DRIVER_TYPE_UNKNOWN,
 				nullptr, // Software
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT,// | D3D11_CREATE_DEVICE_DEBUG,
 				levels,
 				ARRAYSIZE(levels),
 				D3D11_SDK_VERSION,

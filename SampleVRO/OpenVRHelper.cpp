@@ -71,6 +71,17 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 							{
 								vr::VROverlay()->ShowDashboard(rgchKey);
 
+								vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
+									m_ulOverlayHandle,
+									vr::k_EGamepadTextInputModeNormal,
+									vr::k_EGamepadTextInputLineModeSingleLine,
+									"", //const char *pchDescription,
+									100, //uint32_t unCharMax,
+									"", // const char *pchExistingText,
+									false, // bUseMinimalMode
+									0//uint64_t uUserValue
+								);
+
 								PostVRPollMsg();
 							}
 						}
@@ -102,12 +113,13 @@ void OpenVRHelper::OverlayPump()
 		vr::VREvent_t vrEvent;
 		while (vr::VROverlay()->PollNextOverlayEvent(m_ulOverlayHandle, &vrEvent, sizeof(vrEvent)))
 		{
+			_RPTF1(_CRT_WARN, "VREvent_t.eventType: %s\n", vr::VRSystem()->GetEventTypeNameFromEnum((vr::EVREventType)(vrEvent.eventType)));
 			switch (vrEvent.eventType)
 			{
 				case vr::VREvent_MouseButtonDown:
 				{
 					vr::VREvent_Mouse_t data = vrEvent.data.mouse;
-					_RPTF1(_CRT_WARN, "VREvent_t.data.mouse (%f, %f)\n", data.x, data.y);
+					_RPTF1(_CRT_WARN, "  VREvent_t.data.mouse (%f, %f)\n", data.x, data.y);
 					
 					// Windows' origin is top-left, whereas OpenVR's origin is bottom-left, so transform
 					// the y-coordinate.
@@ -118,6 +130,15 @@ void OpenVRHelper::OverlayPump()
 					// Route this back to the main window for processing
 					PostMessage(m_hwnd, WM_LBUTTONDOWN, 0, POINTTOPOINTS(pt));
 				
+					break;
+				}
+				//case vr::VREvent_KeyboardCharInput:
+				default:
+				{
+					vr::VREvent_Keyboard_t data = vrEvent.data.keyboard;
+					_RPTF1(_CRT_WARN, "  VREvent_t.data.keyboard.cNewInput --%s--\n", data.cNewInput);
+					//PostMessage(m_hwnd, WM_CHAR, data.cNewInput[0], 0);
+					//PostMessage(m_hwnd, WM_CHAR, L'x', 0);
 					break;
 				}
 			}
