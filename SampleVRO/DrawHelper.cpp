@@ -93,7 +93,16 @@ HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 	if (hr == S_OK)
 	{
 		IDXGIAdapter1* pDxgiAdapter = nullptr;
-		hr = pDxgiFactory->EnumAdapters1(dxgiAdapterIndex, &pDxgiAdapter);
+		D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
+		if (dxgiAdapterIndex >= 0)
+		{
+			hr = pDxgiFactory->EnumAdapters1(dxgiAdapterIndex, &pDxgiAdapter);
+			if (hr == S_OK)
+			{
+				driverType = D3D_DRIVER_TYPE_UNKNOWN;
+			}
+		}
+
 		if (hr == S_OK)
 		{
 			D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
@@ -116,7 +125,7 @@ HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 
 			hr = D3D11CreateDeviceAndSwapChain(
 				pDxgiAdapter,
-				D3D_DRIVER_TYPE_UNKNOWN,
+				driverType,
 				nullptr, // Software
 				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
 				levels,

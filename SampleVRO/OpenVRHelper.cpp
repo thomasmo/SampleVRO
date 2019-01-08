@@ -13,102 +13,120 @@
 #include "openvr/headers/openvr.h"
 #include <d3d11_1.h>
 
+// Class-wide override to enable calls made to OpenVR
+bool OpenVRHelper::s_isEnabled = true;
 
 void OpenVRHelper::Init(HWND hwnd, RECT rcHwnd, int32_t *pnAdapterIndex)
 {
-	m_hwnd = hwnd;
-	m_rcHwnd = rcHwnd;
-	
-	// COpenVROverlayController::Init
-	vr::EVRInitError eError = vr::VRInitError_None;
-	m_pHMD = vr::VR_Init( &eError, vr::VRApplication_Overlay );
-	if (eError == vr::VRInitError_None)
+	if (s_isEnabled)
 	{
-		m_pHMD->GetDXGIOutputInfo(&m_dxgiAdapterIndex);
-		assert(m_dxgiAdapterIndex != -1);
-		(*pnAdapterIndex) = m_dxgiAdapterIndex;
+		m_hwnd = hwnd;
+		m_rcHwnd = rcHwnd;
+
+		// COpenVROverlayController::Init
+		vr::EVRInitError eError = vr::VRInitError_None;
+		m_pHMD = vr::VR_Init(&eError, vr::VRApplication_Overlay);
+		if (eError == vr::VRInitError_None)
+		{
+			m_pHMD->GetDXGIOutputInfo(&m_dxgiAdapterIndex);
+			assert(m_dxgiAdapterIndex != -1);
+			(*pnAdapterIndex) = m_dxgiAdapterIndex;
+		}
+		else
+		{
+			assert(!"Failed to initialze OpenVR");
+		}
 	}
 	else
 	{
-		assert(!"Failed to initialze OpenVR");
+		_RPTF0(_CRT_WARN, "\n\t**OpenVRHelper is disabled for this session.\n");
+		(*pnAdapterIndex) = -1;
 	}
 }
 
 
 void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 {
-	// COpenVROverlayController::Init
-	if (vr::VROverlay() != nullptr)
+	if (s_isEnabled)
 	{
-		std::string sKey = std::string("SampleVRO");
-		vr::VROverlayError overlayError = vr::VROverlayError_None;
-
-		overlayError = vr::VROverlay()->CreateDashboardOverlay(
-			sKey.c_str(),
-			sKey.c_str(),
-			&m_ulOverlayHandle,
-			&m_ulOverlayThumbnailHandle
-		);
-
-		if (overlayError == vr::VROverlayError_None)
+		// COpenVROverlayController::Init
+		if (vr::VROverlay() != nullptr)
 		{
-			overlayError = vr::VROverlay()->SetOverlayWidthInMeters( m_ulOverlayHandle, 1.5f );
+			std::string sKey = std::string("SampleVRO");
+			vr::VROverlayError overlayError = vr::VROverlayError_None;
+
+			overlayError = vr::VROverlay()->CreateDashboardOverlay(
+				sKey.c_str(),
+				sKey.c_str(),
+				&m_ulOverlayHandle,
+				&m_ulOverlayThumbnailHandle
+			);
+
 			if (overlayError == vr::VROverlayError_None)
 			{
-				overlayError = vr::VROverlay()->SetOverlayFlag(m_ulOverlayHandle, vr::VROverlayFlags_VisibleInDashboard, true);
+				overlayError = vr::VROverlay()->SetOverlayWidthInMeters(m_ulOverlayHandle, 1.5f);
 				if (overlayError == vr::VROverlayError_None)
 				{
-					overlayError = vr::VROverlay()->SetOverlayInputMethod(m_ulOverlayHandle, vr::VROverlayInputMethod_Mouse);
+					overlayError = vr::VROverlay()->SetOverlayFlag(m_ulOverlayHandle, vr::VROverlayFlags_VisibleInDashboard, true);
 					if (overlayError == vr::VROverlayError_None)
 					{
-						char rgchKey[vr::k_unVROverlayMaxKeyLength] = { 0 };
-						vr::VROverlay()->GetOverlayKey(m_ulOverlayHandle, rgchKey, ARRAYSIZE(rgchKey), &overlayError);
+						overlayError = vr::VROverlay()->SetOverlayInputMethod(m_ulOverlayHandle, vr::VROverlayInputMethod_Mouse);
 						if (overlayError == vr::VROverlayError_None)
 						{
-							vr::HmdVector2_t vecWindowSize = { (float)m_rcHwnd.right, (float)m_rcHwnd.bottom};
-							overlayError = vr::VROverlay()->SetOverlayMouseScale( m_ulOverlayHandle, &vecWindowSize );
+							char rgchKey[vr::k_unVROverlayMaxKeyLength] = { 0 };
+							vr::VROverlay()->GetOverlayKey(m_ulOverlayHandle, rgchKey, ARRAYSIZE(rgchKey), &overlayError);
 							if (overlayError == vr::VROverlayError_None)
 							{
-								vr::VROverlay()->ShowDashboard(rgchKey);
+								vr::HmdVector2_t vecWindowSize = { (float)m_rcHwnd.right, (float)m_rcHwnd.bottom };
+								overlayError = vr::VROverlay()->SetOverlayMouseScale(m_ulOverlayHandle, &vecWindowSize);
+								if (overlayError == vr::VROverlayError_None)
+								{
+									vr::VROverlay()->ShowDashboard(rgchKey);
 
-								// Note: bUseMinimalMode set to true so that each char arrives as an event.
-								vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
-									m_ulOverlayHandle,
-									vr::k_EGamepadTextInputModeNormal,
-									vr::k_EGamepadTextInputLineModeSingleLine,
-									"SampleVRO", // pchDescription,
-									100, // unCharMax,
-									"", // pchExistingText,
-									true, // bUseMinimalMode
-									0 //uint64_t uUserValue
-								);
+									// Note: bUseMinimalMode set to true so that each char arrives as an event.
+									vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
+										m_ulOverlayHandle,
+										vr::k_EGamepadTextInputModeNormal,
+										vr::k_EGamepadTextInputLineModeSingleLine,
+										"SampleVRO", // pchDescription,
+										100, // unCharMax,
+										"", // pchExistingText,
+										true, // bUseMinimalMode
+										0 //uint64_t uUserValue
+									);
 
-								PostVRPollMsg();
+									PostVRPollMsg();
+								}
 							}
 						}
 					}
 				}
 			}
-		}
 
-		assert(overlayError == vr::VROverlayError_None);
-	}
-	else
-	{
-		assert(!"Failed to get VROverlay");
+			assert(overlayError == vr::VROverlayError_None);
+		}
+		else
+		{
+			assert(!"Failed to get VROverlay");
+		}
 	}
 }
 
 // Post a custom VRPOLL msg for asynchronous processing
 void OpenVRHelper::PostVRPollMsg()
 {
-	bool success = PostMessage(m_hwnd, WM_VRPOLL, 0, 0);
-	assert(success || !"Failed to post VR msg");
+	if (s_isEnabled)
+	{
+		bool success = PostMessage(m_hwnd, WM_VRPOLL, 0, 0);
+		assert(success || !"Failed to post VR msg");
+	}
 }
 
 // COpenVROverlayController::OnTimeoutPumpEvents()
 void OpenVRHelper::OverlayPump()
 {
+	assert(s_isEnabled);
+
 	if (vr::VROverlay() != nullptr)
 	{
 		vr::VREvent_t vrEvent;
@@ -149,11 +167,19 @@ void OpenVRHelper::OverlayPump()
 
 vr::VROverlayError OpenVRHelper::SetOverlayTexture(ID3D11Texture2D* pTex)
 {
-	vr::Texture_t overlayTextureDX11 = {
-		pTex,
-		vr::TextureType_DirectX,
-		vr::ColorSpace_Gamma
-	};
+	if (s_isEnabled)
+	{
 
-	return vr::VROverlay()->SetOverlayTexture(m_ulOverlayHandle, &overlayTextureDX11);
+		vr::Texture_t overlayTextureDX11 = {
+			pTex,
+			vr::TextureType_DirectX,
+			vr::ColorSpace_Gamma
+		};
+
+		return vr::VROverlay()->SetOverlayTexture(m_ulOverlayHandle, &overlayTextureDX11);
+	}
+	else
+	{
+		return vr::VROverlayError_None;
+	}
 }

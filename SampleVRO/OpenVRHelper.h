@@ -36,5 +36,7 @@ private:
 	vr::VROverlayHandle_t m_ulOverlayThumbnailHandle;
 	HWND m_hwnd;
 	RECT m_rcHwnd;
+
+	static bool s_isEnabled;
 };
 
