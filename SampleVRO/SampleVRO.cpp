@@ -18,6 +18,9 @@
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "dxgi")
 
+#define CHILD_PROC	L"--child"
+#define GFX_PROC	L"--gfx"
+
 template <class DERIVED_TYPE> 
 class BaseWindow
 {
@@ -98,6 +101,9 @@ class MainWindow : public BaseWindow<MainWindow>
 	DrawHelper				drawHelper;
 	OpenVRHelper			ovrHelper;
 
+	PROCESS_INFORMATION procInfoChild = { 0 };
+	PROCESS_INFORMATION procInfoGfx = { 0 };
+
 	void    OnPaint();
 	void    Resize();
 	void	SaveChar(WPARAM wParam);
@@ -112,6 +118,8 @@ public:
 
 	PCWSTR  ClassName() const { return L"Circle Window Class"; }
 	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	void	CreateChildProcs();
+	void	TerminateChildProcs();
 };
 
 void MainWindow::OnPaint()
@@ -137,16 +145,91 @@ void MainWindow::SavePoint(WPARAM wParam, LPARAM lParam)
 	cPoints = (cPoints + 1) % ARRAYSIZE(rgPoints);
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
+// Start up the new processes
+void MainWindow::CreateChildProcs()
 {
+	//DebugBreak();
+
+	WCHAR cmd[MAX_PATH + 50] = { 0 };
+
+	int err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s", GetCommandLine(), CHILD_PROC);
+	assert(err > 0);
+
+	STARTUPINFO startupInfoChild = { 0 };
+	bool fCreateContentProc = CreateProcess(
+		nullptr, // lpApplicationName,
+		cmd, 
+		nullptr, // lpProcessAttributes,
+		nullptr, // lpThreadAttributes,
+		TRUE, // bInheritHandles,
+		0, // dwCreationFlags,
+		nullptr, // lpEnvironment,
+		nullptr, // lpCurrentDirectory,
+		&startupInfoChild,
+		&procInfoChild
+	);
+	assert(fCreateContentProc);
+
+	err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s", GetCommandLine(), GFX_PROC);
+	assert(err > 0);
+
+	STARTUPINFO startupInfoGfx = { 0 };	
+	fCreateContentProc = CreateProcess(
+		nullptr, // lpApplicationName,
+		cmd, 
+		nullptr, // lpProcessAttributes,
+		nullptr, // lpThreadAttributes,
+		TRUE, // bInheritHandles,
+		0, // dwCreationFlags,
+		nullptr, // lpEnvironment,
+		nullptr, // lpCurrentDirectory,
+		&startupInfoGfx,
+		&procInfoGfx
+	);
+	assert(fCreateContentProc);
+}
+
+// Synchronously terminate the new processes
+void MainWindow::TerminateChildProcs()
+{
+	::TerminateProcess(procInfoChild.hProcess, 0);
+	::WaitForSingleObject(procInfoChild.hProcess, 2000);
+
+	::TerminateProcess(procInfoGfx.hProcess, 0);
+	::WaitForSingleObject(procInfoGfx.hProcess, 2000);
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR lpCmdLine, int nCmdShow)
+{
+	_RPTF2(_CRT_WARN, "Starting SampleVRO with args \"%S\" at PID 0n%d\n", lpCmdLine, ::GetCurrentProcessId());
+
 	MainWindow win;
-	
-	if (!win.Create(L"SampleVRO", WS_OVERLAPPEDWINDOW, 0, 50, 50, 640, 320))
+	if (wcslen(lpCmdLine) == 0)
 	{
+		// This is the main process
+		_RPTF0(_CRT_WARN, "  Starting SampleVRO main process\n");
+
+		win.CreateChildProcs();
+		if (!win.Create(L"SampleVRO", WS_OVERLAPPEDWINDOW, 0, 50, 50, 640, 320))
+		{
+			return 0;
+		}
+
+		ShowWindow(win.Window(), nCmdShow);
+	}
+	else if (wcscmp(lpCmdLine, CHILD_PROC) == 0)
+	{
+		_RPTF0(_CRT_WARN, "  Starting SampleVRO child process\n");
+	}
+	else if (wcscmp(lpCmdLine, GFX_PROC) == 0)
+	{
+		_RPTF0(_CRT_WARN, "  Starting SampleVRO graphics process\n");
+	}
+	else
+	{
+		assert(!"Unsupported arg");
 		return 0;
 	}
-
-	ShowWindow(win.Window(), nCmdShow);	
 
 	// Run the message loop.
 
@@ -155,6 +238,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
+	}
+
+	_RPTF1(_CRT_WARN, "Closing SampleVRO at PID 0x%d\n", ::GetCurrentProcessId());
+	
+	if (wcslen(lpCmdLine) == 0)
+	{
+		win.TerminateChildProcs();
 	}
 
 	return 0;
