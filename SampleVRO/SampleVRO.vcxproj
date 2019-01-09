@@ -157,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DrawHelper.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenVRHelper.cpp" />
     <ClCompile Include="SampleVRO.cpp" />
     <ClCompile Include="stdafx.cpp">

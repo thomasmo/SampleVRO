@@ -14,6 +14,9 @@ template <class T> void SafeRelease(T **ppT)
 	}
 }
 
+#define CHILD_PROC	L"--child"
+#define GFX_PROC	L"--gfx"
+
 #include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
