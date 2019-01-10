@@ -15,6 +15,8 @@
 #include "dxtk/Inc/ScreenGrab.h"
 
 DrawHelper::DrawHelper():
+	dxgiAdapterIndex(-1),
+	ulOverlayHandle(-1),
 	pFactory(nullptr),
 	pDevice2d(nullptr),
 	pDevice2dContext(nullptr),
@@ -40,8 +42,14 @@ DrawHelper::~DrawHelper()
 }
 
 // Per-instance
-HRESULT DrawHelper::Setup()
+HRESULT DrawHelper::Setup(int32_t dxgiAdapterIndexParam, vr::VROverlayHandle_t overlayHandle)
 {
+	dxgiAdapterIndex = dxgiAdapterIndexParam;
+	ulOverlayHandle = overlayHandle;
+
+	vr::EVRInitError eError = vr::VRInitError_None;
+	vr::VR_Init(&eError, vr::VRApplication_Overlay);
+
 	D2D1_FACTORY_OPTIONS options;
 	options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
 	return D2D1CreateFactory(
@@ -78,15 +86,10 @@ void DrawHelper::DiscardGraphicsResources()
 	SafeRelease(&pTextFormat);
 }
 
-HRESULT DrawHelper::CreateD3DResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper)
+HRESULT DrawHelper::CreateD3DResources(HWND hwndMain, HWND hwndOVR)
 {
 	RECT rc;
 	GetClientRect(hwndMain, &rc);
-
-	// Ask OpenVR which adapter it uses so that the swapchain can be created
-	// with the same adapter.
-	int32_t dxgiAdapterIndex = -1;
-	povrHelper->Init(hwndMain, hwndOVR, rc, &dxgiAdapterIndex);
 
 	IDXGIFactory1 * pDxgiFactory = nullptr;
 	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&pDxgiFactory));
@@ -210,12 +213,12 @@ HRESULT DrawHelper::CreateDWriteResources()
 }
 
 // 
-HRESULT DrawHelper::CreateGraphicsResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper)
+HRESULT DrawHelper::CreateGraphicsResources(HWND hwndMain, HWND hwndOVR)
 {
 	HRESULT hr = S_OK;
 	if (pRenderTarget == NULL)
 	{
-		hr = CreateD3DResources(hwndMain, hwndOVR, povrHelper);
+		hr = CreateD3DResources(hwndMain, hwndOVR);
 		if (hr == S_OK)
 		{
 			hr = CreateDWriteResources();
@@ -256,7 +259,6 @@ HRESULT DrawHelper::CreateGraphicsResources(HWND hwndMain, HWND hwndOVR, OpenVRH
 							if (SUCCEEDED(hr))
 							{
 								CalculateLayout();
-								povrHelper->CreateOverlay(pTex);
 							}
 						}
 					}
@@ -281,11 +283,11 @@ void DrawHelper::CalculateLayout()
 	}
 }
 
-void DrawHelper::Draw(HWND hwndMain, HWND hwndOVR,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints)
+void DrawHelper::Draw(HWND hwndMain, HWND hwndOVR, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints)
 {
 	static float s_clickWidth = 5.0f;
 
-	HRESULT hr = CreateGraphicsResources(hwndMain, hwndOVR, povrHelper);
+	HRESULT hr = CreateGraphicsResources(hwndMain, hwndOVR);
 	if (SUCCEEDED(hr))
 	{
 		pRenderTarget->BeginDraw();
@@ -333,7 +335,7 @@ void DrawHelper::Draw(HWND hwndMain, HWND hwndOVR,  OpenVRHelper* povrHelper, WC
 				if (hr == S_OK)
 				{
 					// TODO: Is this needed everytime the texture is updated? Maybe if swapchain contains multiple backings?
-					povrHelper->SetOverlayTexture(pTex);
+					OpenVRHelper::SetOverlayTexture(ulOverlayHandle, pTex);
 					// Save texture to disk (for debugging purposes)
 					//Save(pDevice3dContext, pTex);
 				}

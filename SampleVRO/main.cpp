@@ -33,11 +33,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR lpCmdLine, int nCmdSho
 
 		if (wcscmp(szArglist[1], OVR_PROC) == 0)
 		{
-			_RPTF0(_CRT_WARN, "  Starting SampleVRO child process\n");
+			return OpenVRWindow::wWinMain(nCmdShow, hwndMain);
 		}
 		else if (wcscmp(szArglist[1], DRAW_PROC) == 0)
 		{	
 			return DrawWindow::wWinMain(nCmdShow, hwndMain);
+		}
+		else
+		{
+			assert(!"What process is this?");
 		}
 	}
 	else
@@ -93,7 +97,26 @@ int DrawWindow::wWinMain(int nCmdShow, HWND hwndMain)
 		return 0;
 	}
 
-	SendMessage(hwndMain, WM_DRAW_HWND, (WPARAM)win.Window(), 0);
+	SendMessage(hwndMain, WM_SHARE_DRAW_HWND, (WPARAM)win.Window(), 0);
+
+	Pump();
+
+	return 0;
+}
+
+int OpenVRWindow::wWinMain(int nCmdShow, HWND hwndMain)
+{
+	_RPTF0(_CRT_WARN, "  Starting SampleVRO OpenVR process\n");
+
+	OpenVRWindow win(hwndMain);
+	if (!win.Create(L"SampleVRO--OVR", WS_OVERLAPPEDWINDOW, 0, 50, 50, 640, 320))
+	{
+		return 0;
+	}
+
+	win.OnCreate();
+
+	SendMessage(hwndMain, WM_SHARE_OVR_HWND, (WPARAM)win.Window(), 0);
 
 	Pump();
 

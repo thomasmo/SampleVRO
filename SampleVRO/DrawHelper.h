@@ -8,16 +8,15 @@
 #include <dwrite.h>
 
 
-
 class DrawHelper
 {
 public:
 	DrawHelper();
 	~DrawHelper();
 
-	HRESULT Setup();	
+	HRESULT Setup(int32_t dxgiAdapterIndexParam, vr::VROverlayHandle_t overlayHandle);	
 
-	void Draw(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints);
+	void Draw(HWND hwndMain, HWND hwndOVR, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints);
 	void CalculateLayout();
 	void Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex);
 
@@ -25,11 +24,13 @@ public:
 	void Shutdown();
 
 private:
-	HRESULT CreateGraphicsResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper);
-	HRESULT CreateD3DResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper);
+	HRESULT CreateGraphicsResources(HWND hwndMain, HWND hwndOVR);
+	HRESULT CreateD3DResources(HWND hwndMain, HWND hwndOVR);
 	HRESULT CreateD2DResources();
 	HRESULT CreateDWriteResources();
 
+	int32_t					dxgiAdapterIndex;
+	vr::VROverlayHandle_t   ulOverlayHandle;
 
 	ID2D1Factory1           *pFactory;
 	ID2D1Device				*pDevice2d;

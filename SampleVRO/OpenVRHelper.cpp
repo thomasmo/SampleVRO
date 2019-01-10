@@ -16,7 +16,7 @@
 // Class-wide override to enable calls made to OpenVR
 bool OpenVRHelper::s_isEnabled = true;
 
-void OpenVRHelper::Init(HWND hwndMain, HWND hwndOvr, RECT rcHwnd, int32_t *pnAdapterIndex)
+void OpenVRHelper::Init(HWND hwndMain, HWND hwndOvr, RECT rcHwnd)
 {
 	if (s_isEnabled)
 	{
@@ -31,7 +31,7 @@ void OpenVRHelper::Init(HWND hwndMain, HWND hwndOvr, RECT rcHwnd, int32_t *pnAda
 		{
 			m_pHMD->GetDXGIOutputInfo(&m_dxgiAdapterIndex);
 			assert(m_dxgiAdapterIndex != -1);
-			(*pnAdapterIndex) = m_dxgiAdapterIndex;
+			CreateOverlay();
 		}
 		else
 		{
@@ -41,12 +41,11 @@ void OpenVRHelper::Init(HWND hwndMain, HWND hwndOvr, RECT rcHwnd, int32_t *pnAda
 	else
 	{
 		_RPTF0(_CRT_WARN, "\n\t**OpenVRHelper is disabled for this session.\n");
-		(*pnAdapterIndex) = -1;
 	}
 }
 
 
-void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
+void OpenVRHelper::CreateOverlay()
 {
 	if (s_isEnabled)
 	{
@@ -96,7 +95,7 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 										0 //uint64_t uUserValue
 									);
 
-									PostVRPollMsg();
+									PostVRPollMsg(m_hwndOvr);
 								}
 							}
 						}
@@ -114,11 +113,11 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 }
 
 // Post a custom VR_POLL msg for asynchronous processing
-void OpenVRHelper::PostVRPollMsg()
+void OpenVRHelper::PostVRPollMsg(HWND hwnd)
 {
 	if (s_isEnabled)
 	{
-		bool success = PostMessage(m_hwndOvr, WM_VR_POLL, 0, 0);
+		bool success = PostMessage(hwnd, WM_VR_POLL, 0, 0);
 		assert(success || !"Failed to post VR msg");
 	}
 }
@@ -166,21 +165,30 @@ void OpenVRHelper::OverlayPump()
 	}
 }
 
-vr::VROverlayError OpenVRHelper::SetOverlayTexture(ID3D11Texture2D* pTex)
+vr::VROverlayError OpenVRHelper::SetOverlayTexture(vr::VROverlayHandle_t ulOverlayHandle, ID3D11Texture2D* pTex)
 {
 	if (s_isEnabled)
 	{
-
 		vr::Texture_t overlayTextureDX11 = {
 			pTex,
 			vr::TextureType_DirectX,
 			vr::ColorSpace_Gamma
 		};
 
-		return vr::VROverlay()->SetOverlayTexture(m_ulOverlayHandle, &overlayTextureDX11);
+		vr::VROverlayError error = vr::VROverlay()->SetOverlayTexture(ulOverlayHandle, &overlayTextureDX11);
+		assert(error == vr::VROverlayError_None);
+		return error;
 	}
 	else
 	{
 		return vr::VROverlayError_None;
 	}
+}
+
+// In order to draw from a process that didn't create the overlay, SetOverlayRenderingPid must be called
+// for that process to allow it to render to the overlay texture.
+void OpenVRHelper::SetDrawPID(DWORD pid)
+{
+	vr::VROverlayError error = vr::VROverlay()->SetOverlayRenderingPid(m_ulOverlayHandle, pid);
+	assert(error == vr::VROverlayError_None);
 }

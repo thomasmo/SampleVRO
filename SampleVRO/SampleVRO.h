@@ -83,6 +83,7 @@ class MainWindow : public BaseWindow<MainWindow>
 	void    Resize();
 	void	SaveChar(WPARAM wParam);
 	void	SavePoint(WPARAM wParam, LPARAM lParam);
+	void	ShareHwnds();
 
 public:
 	MainWindow() :
@@ -107,9 +108,9 @@ class DrawWindow : public BaseWindow<DrawWindow>
 	UINT					cPoints;
 
 	DrawHelper				drawHelper;
-	OpenVRHelper			ovrHelper;
 
 	HWND					hwndMain;
+	HWND					hwndOVR;
 
 	void    OnPaint();
 	void	SaveChar(WPARAM wParam);
@@ -119,11 +120,33 @@ public:
 	DrawWindow(HWND hwndMainParam) :
 		cchTypeBuffer(0),
 		cPoints(0),
-		hwndMain(hwndMainParam)
+		hwndMain(hwndMainParam),
+		hwndOVR(nullptr)
 	{
 	}
 
 	PCWSTR  ClassName() const { return L"SampleVRO--Draw"; }
+	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static int wWinMain(int nCmdShow, HWND hwndMain);
+};
+
+class OpenVRWindow : public BaseWindow<DrawWindow>
+{
+	OpenVRHelper			ovrHelper;
+	HWND					hwndMain;
+	HWND					hwndDraw;
+
+	void    OnPaint();
+	void	OnCreate();
+
+public:
+	OpenVRWindow(HWND hwndMainParam) :
+		hwndMain(hwndMainParam),
+		hwndDraw(nullptr)
+	{
+	}
+
+	PCWSTR  ClassName() const { return L"SampleVRO--OVR"; }
 	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	static int wWinMain(int nCmdShow, HWND hwndMain);
 };

@@ -11,8 +11,31 @@
 //
 // This sample uses 3 processes:
 // - Main: Interacts with OS (takes input messages, creates other processes)
-// [- OVR: Interacts with OpenVR APIs, forwards appropriate messages to Main and Draw processes]
+// - OVR: Interacts with OpenVR APIs, forwards appropriate messages to Main and Draw processes
 // - Draw: Interacts with DirectX, stores content to draw
+//
+// The bootstrapping of the processes are as follows:
+// 
+//            Main                      Draw                     OVR
+//              |
+//       Create other procs--------------+------------------------|
+//              |                        |                        |
+//              |<--------------  Send Draw HWND            Init OpenVR system
+//              |                        |                        |
+//              |<----------------------------------------- Send OVR HWND
+//              |                        |                        |
+//		 Share other HWND  ------------->|----------------------->|
+//              |                        |                        |
+//              |                        |<---------------- Send DX+OVR info
+//              |                        |                        |
+//              |                 Init DX resources               |
+//              |                        |                        |
+//              |                      Draw                       |
+//              |                        |                        |
+//     Receive OS key/mouse ----> Render content from      Receive OVR key/button
+//     input msgs                 input to overlay         input msgs (forward to Main)
+//             ^--------------------------------------------------|
+//
 
 #include "stdafx.h"
 #include "OpenVRHelper.h"
@@ -49,7 +72,7 @@ void MainWindow::SavePoint(WPARAM wParam, LPARAM lParam)
 	SendMessage(hwndDraw, WM_VR_POINT, wParam, lParam);
 }
 
-// Start up the new processes
+// Synchronously start up the new processes
 void MainWindow::CreateChildProcs()
 {
 	//DebugBreak();
@@ -60,7 +83,7 @@ void MainWindow::CreateChildProcs()
 	assert(err > 0);
 
 	STARTUPINFO startupInfoOVR = { 0 };
-	bool fCreateContentProc = CreateProcess(
+	bool fCreateContentProc = ::CreateProcess(
 		nullptr, // lpApplicationName,
 		cmd, 
 		nullptr, // lpProcessAttributes,
@@ -73,12 +96,13 @@ void MainWindow::CreateChildProcs()
 		&procInfoOVR
 	);
 	assert(fCreateContentProc);
+	::WaitForInputIdle(procInfoOVR.hProcess, INFINITE);
 
 	err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s 0x%p", GetCommandLine(), DRAW_PROC, Window());
 	assert(err > 0);
 
 	STARTUPINFO startupInfoDraw = { 0 };	
-	fCreateContentProc = CreateProcess(
+	fCreateContentProc = ::CreateProcess(
 		nullptr, // lpApplicationName,
 		cmd, 
 		nullptr, // lpProcessAttributes,
@@ -91,6 +115,7 @@ void MainWindow::CreateChildProcs()
 		&procInfoDraw
 	);
 	assert(fCreateContentProc);
+	::WaitForInputIdle(procInfoDraw.hProcess, INFINITE);
 }
 
 // Synchronously terminate the new processes
@@ -101,6 +126,15 @@ void MainWindow::TerminateChildProcs()
 
 	::TerminateProcess(procInfoDraw.hProcess, 0);
 	::WaitForSingleObject(procInfoDraw.hProcess, 2000);
+}
+
+void MainWindow::ShareHwnds()
+{
+	if (hwndDraw != nullptr && hwndOVR != nullptr)
+	{
+		SendMessage(hwndDraw, WM_SHARE_OVR_HWND, (WPARAM)hwndOVR, 0);
+		SendMessage(hwndOVR, WM_SHARE_DRAW_HWND, (WPARAM)hwndDraw, 0);
+	}
 }
 
 LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -131,10 +165,15 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		OnPaint();
 		return 0;
 
-	case WM_DRAW_HWND:
+	case WM_SHARE_DRAW_HWND:
 		hwndDraw = (HWND)wParam;
+		ShareHwnds();
 		return 0;
 
+	case WM_SHARE_OVR_HWND:
+		hwndOVR = (HWND)wParam;
+		ShareHwnds();
+		return 0;
 	}
 	return DefWindowProc(m_hwnd, uMsg, wParam, lParam);
 }
@@ -143,8 +182,8 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void DrawWindow::OnPaint()
 {
-	drawHelper.Draw(hwndMain, Window(), &ovrHelper, pchTypeBuffer, cchTypeBuffer, rgPoints, cPoints);
-	ovrHelper.PostVRPollMsg();
+	drawHelper.Draw(hwndMain, Window(), pchTypeBuffer, cchTypeBuffer, rgPoints, cPoints);
+	OpenVRHelper::PostVRPollMsg(hwndOVR);
 }
 
 void DrawWindow::SaveChar(WPARAM wParam)
@@ -163,13 +202,20 @@ LRESULT DrawWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
-	case WM_CREATE:
-		drawHelper.Setup();
+	case WM_VR_DXADAPTER:
+		drawHelper.Setup(
+			wParam, // dxgiAdapterIndex
+			lParam  // overlayHandle
+		);
 		return 0;
 
 	case WM_DESTROY:
 		drawHelper.Shutdown();
 		PostQuitMessage(0);
+		return 0;
+
+	case WM_SHARE_OVR_HWND:
+		hwndOVR = (HWND)wParam;
 		return 0;
 
 	case WM_VR_PAINT:
@@ -184,6 +230,38 @@ LRESULT DrawWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_VR_POINT:
 		SavePoint(wParam, lParam);
 		OnPaint();
+		return 0;
+
+	case WM_VR_POLL:
+		DebugBreak();
+		return 0;
+	}
+	return DefWindowProc(m_hwnd, uMsg, wParam, lParam);
+}
+
+/////////////////////////// OpenVRWindow class for OVR Process ///////////////////////////
+
+void OpenVRWindow::OnCreate()
+{
+	RECT rc;
+	GetClientRect(hwndMain, &rc);
+	ovrHelper.Init(hwndMain, Window(), rc);
+}
+
+LRESULT OpenVRWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	switch (uMsg)
+	{
+	case WM_DESTROY:	
+		PostQuitMessage(0);
+		return 0;
+
+	case WM_SHARE_DRAW_HWND:
+		hwndDraw = (HWND)wParam;
+		DWORD pid;
+		GetWindowThreadProcessId(hwndDraw, &pid);
+		ovrHelper.SetDrawPID(pid);
+		SendMessage(hwndDraw, WM_VR_DXADAPTER, ovrHelper.GetAdapterIndex(), ovrHelper.GetOverlayHandle());
 		return 0;
 
 	case WM_VR_POLL:

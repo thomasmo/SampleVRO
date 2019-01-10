@@ -35,10 +35,11 @@ template <class T> void SafeRelease(T **ppT)
 
 // https://stackoverflow.com/questions/293723/how-could-i-create-a-custom-windows-message
 #define WM_VR_POLL				(WM_USER+0)
-#define WM_DRAW_HWND			(WM_USER+1)
-#define WM_OVR_HWND				(WM_USER+2)
+#define WM_SHARE_DRAW_HWND		(WM_USER+1)
+#define WM_SHARE_OVR_HWND		(WM_USER+2)
 #define WM_VR_CHAR				(WM_USER+3)
 #define WM_VR_POINT				(WM_USER+4)
 #define WM_VRFWD_LBUTTONDOWN	(WM_USER+5)
 #define WM_VRFWD_CHAR			(WM_USER+6)
 #define WM_VR_PAINT				(WM_USER+7)
+#define WM_VR_DXADAPTER			(WM_USER+8)
