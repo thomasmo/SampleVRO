@@ -8,22 +8,26 @@
 //
 // This file contains definition of BaseWindow and MainWindow, which register with the OS to receive and
 // respond to window messages.
+//
+// This sample uses 3 processes:
+// - Main: Interacts with OS (takes input messages, creates other processes)
+// [- OVR: Interacts with OpenVR APIs, forwards appropriate messages to Main and Draw processes]
+// - Draw: Interacts with DirectX, stores content to draw
 
 #include "stdafx.h"
 #include "OpenVRHelper.h"
 #include "DrawHelper.h"
 #include "SampleVRO.h"
 
-#pragma comment(lib, "d2d1")
-#pragma comment(lib, "dwrite")
-#pragma comment(lib, "d3d11")
-#pragma comment(lib, "dxgi")
+/////////////////////////// MainWindow class for Main Process ///////////////////////////
 
-
+// Forward paint message from OS to Draw process
 void MainWindow::OnPaint()
 {
-	drawHelper.Draw(m_hwnd, &ovrHelper, pchTypeBuffer, cchTypeBuffer, rgPoints, cPoints);
-	ovrHelper.PostVRPollMsg();
+	if (hwndDraw != nullptr)
+	{
+		SendMessage(hwndDraw, WM_VR_PAINT, 0, 0);
+	}
 }
 
 void MainWindow::Resize()
@@ -31,16 +35,18 @@ void MainWindow::Resize()
 	InvalidateRect(m_hwnd, NULL, FALSE);
 }
 
+// Forward key message from OS to Draw process
 void MainWindow::SaveChar(WPARAM wParam)
 {
-	pchTypeBuffer[cchTypeBuffer] = (wchar_t)wParam;
-	cchTypeBuffer = (cchTypeBuffer + 1) % ARRAYSIZE(pchTypeBuffer);
+	assert(hwndDraw != nullptr);
+	SendMessage(hwndDraw, WM_VR_CHAR, wParam, 0);
 }
 
+// Forward click message from OS to Draw process
 void MainWindow::SavePoint(WPARAM wParam, LPARAM lParam)
 {
-	rgPoints[cPoints] = MAKEPOINTS(lParam);
-	cPoints = (cPoints + 1) % ARRAYSIZE(rgPoints);
+	assert(hwndDraw != nullptr);
+	SendMessage(hwndDraw, WM_VR_POINT, wParam, lParam);
 }
 
 // Start up the new processes
@@ -50,10 +56,10 @@ void MainWindow::CreateChildProcs()
 
 	WCHAR cmd[MAX_PATH + 50] = { 0 };
 
-	int err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s", GetCommandLine(), CHILD_PROC);
+	int err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s 0x%p", GetCommandLine(), OVR_PROC, Window());
 	assert(err > 0);
 
-	STARTUPINFO startupInfoChild = { 0 };
+	STARTUPINFO startupInfoOVR = { 0 };
 	bool fCreateContentProc = CreateProcess(
 		nullptr, // lpApplicationName,
 		cmd, 
@@ -63,15 +69,15 @@ void MainWindow::CreateChildProcs()
 		0, // dwCreationFlags,
 		nullptr, // lpEnvironment,
 		nullptr, // lpCurrentDirectory,
-		&startupInfoChild,
-		&procInfoChild
+		&startupInfoOVR,
+		&procInfoOVR
 	);
 	assert(fCreateContentProc);
 
-	err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s", GetCommandLine(), GFX_PROC);
+	err = swprintf_s(cmd, ARRAYSIZE(cmd), L"%s %s 0x%p", GetCommandLine(), DRAW_PROC, Window());
 	assert(err > 0);
 
-	STARTUPINFO startupInfoGfx = { 0 };	
+	STARTUPINFO startupInfoDraw = { 0 };	
 	fCreateContentProc = CreateProcess(
 		nullptr, // lpApplicationName,
 		cmd, 
@@ -81,8 +87,8 @@ void MainWindow::CreateChildProcs()
 		0, // dwCreationFlags,
 		nullptr, // lpEnvironment,
 		nullptr, // lpCurrentDirectory,
-		&startupInfoGfx,
-		&procInfoGfx
+		&startupInfoDraw,
+		&procInfoDraw
 	);
 	assert(fCreateContentProc);
 }
@@ -90,24 +96,18 @@ void MainWindow::CreateChildProcs()
 // Synchronously terminate the new processes
 void MainWindow::TerminateChildProcs()
 {
-	::TerminateProcess(procInfoChild.hProcess, 0);
-	::WaitForSingleObject(procInfoChild.hProcess, 2000);
+	::TerminateProcess(procInfoOVR.hProcess, 0);
+	::WaitForSingleObject(procInfoOVR.hProcess, 2000);
 
-	::TerminateProcess(procInfoGfx.hProcess, 0);
-	::WaitForSingleObject(procInfoGfx.hProcess, 2000);
+	::TerminateProcess(procInfoDraw.hProcess, 0);
+	::WaitForSingleObject(procInfoDraw.hProcess, 2000);
 }
-
 
 LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
-	case WM_CREATE:
-		drawHelper.Setup();
-		return 0;
-
 	case WM_DESTROY:
-		drawHelper.Shutdown();
 		PostQuitMessage(0);
 		return 0;
 
@@ -120,19 +120,75 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return 0;
 
 	case WM_CHAR:
+	case WM_VRFWD_CHAR:
 		SaveChar(wParam);
 		OnPaint();
 		return 0;
 
 	case WM_LBUTTONDOWN:
+	case WM_VRFWD_LBUTTONDOWN:
 		SavePoint(wParam, lParam);
 		OnPaint();
 		return 0;
 
-	case WM_VRPOLL:
+	case WM_DRAW_HWND:
+		hwndDraw = (HWND)wParam;
+		return 0;
+
+	}
+	return DefWindowProc(m_hwnd, uMsg, wParam, lParam);
+}
+
+/////////////////////////// DrawWindow class for Draw Process ///////////////////////////
+
+void DrawWindow::OnPaint()
+{
+	drawHelper.Draw(hwndMain, Window(), &ovrHelper, pchTypeBuffer, cchTypeBuffer, rgPoints, cPoints);
+	ovrHelper.PostVRPollMsg();
+}
+
+void DrawWindow::SaveChar(WPARAM wParam)
+{
+	pchTypeBuffer[cchTypeBuffer] = (wchar_t)wParam;
+	cchTypeBuffer = (cchTypeBuffer + 1) % ARRAYSIZE(pchTypeBuffer);
+}
+
+void DrawWindow::SavePoint(WPARAM wParam, LPARAM lParam)
+{
+	rgPoints[cPoints] = MAKEPOINTS(lParam);
+	cPoints = (cPoints + 1) % ARRAYSIZE(rgPoints);
+}
+
+LRESULT DrawWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	switch (uMsg)
+	{
+	case WM_CREATE:
+		drawHelper.Setup();
+		return 0;
+
+	case WM_DESTROY:
+		drawHelper.Shutdown();
+		PostQuitMessage(0);
+		return 0;
+
+	case WM_VR_PAINT:
+		OnPaint();
+		return 0;
+
+	case WM_VR_CHAR:
+		SaveChar(wParam);
+		OnPaint();
+		return 0;
+
+	case WM_VR_POINT:
+		SavePoint(wParam, lParam);
+		OnPaint();
+		return 0;
+
+	case WM_VR_POLL:
 		ovrHelper.OverlayPump();
 		return 0;
 	}
 	return DefWindowProc(m_hwnd, uMsg, wParam, lParam);
 }
-

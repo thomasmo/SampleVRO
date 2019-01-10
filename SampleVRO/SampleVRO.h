@@ -74,16 +74,10 @@ protected:
 
 class MainWindow : public BaseWindow<MainWindow>
 {
-	WCHAR					pchTypeBuffer[100] = { 0 };
-	UINT					cchTypeBuffer;
-	POINTS					rgPoints[25] = { 0 };
-	UINT					cPoints;
-
-	DrawHelper				drawHelper;
-	OpenVRHelper			ovrHelper;
-
-	PROCESS_INFORMATION procInfoChild = { 0 };
-	PROCESS_INFORMATION procInfoGfx = { 0 };
+	PROCESS_INFORMATION procInfoOVR = { 0 };
+	PROCESS_INFORMATION procInfoDraw = { 0 };
+	HWND hwndOVR;
+	HWND hwndDraw;
 
 	void    OnPaint();
 	void    Resize();
@@ -92,13 +86,44 @@ class MainWindow : public BaseWindow<MainWindow>
 
 public:
 	MainWindow() :
-		cchTypeBuffer(0),
-		cPoints(0)
+		hwndOVR(nullptr),
+		hwndDraw(nullptr)
 	{
 	}
 
-	PCWSTR  ClassName() const { return L"Circle Window Class"; }
+	PCWSTR  ClassName() const { return L"SampleVRO--Main"; }
 	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	void	CreateChildProcs();
 	void	TerminateChildProcs();
+
+	static int wWinMain(int nCmdShow);
+};
+
+class DrawWindow : public BaseWindow<DrawWindow>
+{
+	WCHAR					pchTypeBuffer[100] = { 0 };
+	UINT					cchTypeBuffer;
+	POINTS					rgPoints[25] = { 0 };
+	UINT					cPoints;
+
+	DrawHelper				drawHelper;
+	OpenVRHelper			ovrHelper;
+
+	HWND					hwndMain;
+
+	void    OnPaint();
+	void	SaveChar(WPARAM wParam);
+	void	SavePoint(WPARAM wParam, LPARAM lParam);
+
+public:
+	DrawWindow(HWND hwndMainParam) :
+		cchTypeBuffer(0),
+		cPoints(0),
+		hwndMain(hwndMainParam)
+	{
+	}
+
+	PCWSTR  ClassName() const { return L"SampleVRO--Draw"; }
+	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static int wWinMain(int nCmdShow, HWND hwndMain);
 };

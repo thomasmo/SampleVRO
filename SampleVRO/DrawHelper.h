@@ -17,7 +17,7 @@ public:
 
 	HRESULT Setup();	
 
-	void Draw(HWND hwnd, OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints);
+	void Draw(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints);
 	void CalculateLayout();
 	void Save(ID3D11DeviceContext* pContext, ID3D11Texture2D* pTex);
 
@@ -25,8 +25,8 @@ public:
 	void Shutdown();
 
 private:
-	HRESULT CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper);
-	HRESULT CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper);
+	HRESULT CreateGraphicsResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper);
+	HRESULT CreateD3DResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper);
 	HRESULT CreateD2DResources();
 	HRESULT CreateDWriteResources();
 

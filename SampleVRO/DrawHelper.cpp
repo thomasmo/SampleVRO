@@ -78,15 +78,15 @@ void DrawHelper::DiscardGraphicsResources()
 	SafeRelease(&pTextFormat);
 }
 
-HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
+HRESULT DrawHelper::CreateD3DResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper)
 {
 	RECT rc;
-	GetClientRect(hwnd, &rc);
+	GetClientRect(hwndMain, &rc);
 
 	// Ask OpenVR which adapter it uses so that the swapchain can be created
 	// with the same adapter.
 	int32_t dxgiAdapterIndex = -1;
-	povrHelper->Init(hwnd, rc, &dxgiAdapterIndex);
+	povrHelper->Init(hwndMain, hwndOVR, rc, &dxgiAdapterIndex);
 
 	IDXGIFactory1 * pDxgiFactory = nullptr;
 	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&pDxgiFactory));
@@ -120,14 +120,14 @@ HRESULT DrawHelper::CreateD3DResources(HWND hwnd, OpenVRHelper* povrHelper)
 			descSwapChain.SampleDesc.Quality = 0;
 			descSwapChain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 			descSwapChain.BufferCount = 1;
-			descSwapChain.OutputWindow = hwnd;
+			descSwapChain.OutputWindow = hwndMain;
 			descSwapChain.Windowed = TRUE;
 
 			hr = D3D11CreateDeviceAndSwapChain(
 				pDxgiAdapter,
 				driverType,
 				nullptr, // Software
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT,// | D3D11_CREATE_DEVICE_DEBUG,
 				levels,
 				ARRAYSIZE(levels),
 				D3D11_SDK_VERSION,
@@ -210,12 +210,12 @@ HRESULT DrawHelper::CreateDWriteResources()
 }
 
 // 
-HRESULT DrawHelper::CreateGraphicsResources(HWND hwnd, OpenVRHelper* povrHelper)
+HRESULT DrawHelper::CreateGraphicsResources(HWND hwndMain, HWND hwndOVR, OpenVRHelper* povrHelper)
 {
 	HRESULT hr = S_OK;
 	if (pRenderTarget == NULL)
 	{
-		hr = CreateD3DResources(hwnd, povrHelper);
+		hr = CreateD3DResources(hwndMain, hwndOVR, povrHelper);
 		if (hr == S_OK)
 		{
 			hr = CreateDWriteResources();
@@ -281,11 +281,11 @@ void DrawHelper::CalculateLayout()
 	}
 }
 
-void DrawHelper::Draw(HWND hwnd,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints)
+void DrawHelper::Draw(HWND hwndMain, HWND hwndOVR,  OpenVRHelper* povrHelper, WCHAR* pchTypeBuffer, UINT cchTypeBuffer, POINTS* pPoints, UINT cPoints)
 {
 	static float s_clickWidth = 5.0f;
 
-	HRESULT hr = CreateGraphicsResources(hwnd, povrHelper);
+	HRESULT hr = CreateGraphicsResources(hwndMain, hwndOVR, povrHelper);
 	if (SUCCEEDED(hr))
 	{
 		pRenderTarget->BeginDraw();

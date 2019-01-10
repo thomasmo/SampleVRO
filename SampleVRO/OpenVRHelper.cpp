@@ -16,12 +16,13 @@
 // Class-wide override to enable calls made to OpenVR
 bool OpenVRHelper::s_isEnabled = true;
 
-void OpenVRHelper::Init(HWND hwnd, RECT rcHwnd, int32_t *pnAdapterIndex)
+void OpenVRHelper::Init(HWND hwndMain, HWND hwndOvr, RECT rcHwnd, int32_t *pnAdapterIndex)
 {
 	if (s_isEnabled)
 	{
-		m_hwnd = hwnd;
-		m_rcHwnd = rcHwnd;
+		m_hwndMain = hwndMain;
+		m_rcHwndMain = rcHwnd;
+		m_hwndOvr = hwndOvr;
 
 		// COpenVROverlayController::Init
 		vr::EVRInitError eError = vr::VRInitError_None;
@@ -77,7 +78,7 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 							vr::VROverlay()->GetOverlayKey(m_ulOverlayHandle, rgchKey, ARRAYSIZE(rgchKey), &overlayError);
 							if (overlayError == vr::VROverlayError_None)
 							{
-								vr::HmdVector2_t vecWindowSize = { (float)m_rcHwnd.right, (float)m_rcHwnd.bottom };
+								vr::HmdVector2_t vecWindowSize = { (float)m_rcHwndMain.right, (float)m_rcHwndMain.bottom };
 								overlayError = vr::VROverlay()->SetOverlayMouseScale(m_ulOverlayHandle, &vecWindowSize);
 								if (overlayError == vr::VROverlayError_None)
 								{
@@ -112,12 +113,12 @@ void OpenVRHelper::CreateOverlay(ID3D11Texture2D* pTex)
 	}
 }
 
-// Post a custom VRPOLL msg for asynchronous processing
+// Post a custom VR_POLL msg for asynchronous processing
 void OpenVRHelper::PostVRPollMsg()
 {
 	if (s_isEnabled)
 	{
-		bool success = PostMessage(m_hwnd, WM_VRPOLL, 0, 0);
+		bool success = PostMessage(m_hwndOvr, WM_VR_POLL, 0, 0);
 		assert(success || !"Failed to post VR msg");
 	}
 }
@@ -143,11 +144,11 @@ void OpenVRHelper::OverlayPump()
 					// Windows' origin is top-left, whereas OpenVR's origin is bottom-left, so transform
 					// the y-coordinate.
 					POINT pt;
-					pt.x = data.x;
-					pt.y = m_rcHwnd.bottom - data.y;
+					pt.x = (LONG)(data.x);
+					pt.y = m_rcHwndMain.bottom - (LONG)(data.y);
 
 					// Route this back to the main window for processing
-					PostMessage(m_hwnd, WM_LBUTTONDOWN, 0, POINTTOPOINTS(pt));
+					PostMessage(m_hwndMain, WM_VRFWD_LBUTTONDOWN, 0, POINTTOPOINTS(pt));
 				
 					break;
 				}
@@ -157,7 +158,7 @@ void OpenVRHelper::OverlayPump()
 					_RPTF1(_CRT_WARN, "  VREvent_t.data.keyboard.cNewInput --%s--\n", data.cNewInput);
 
 					// Route this back to main window for processing
-					PostMessage(m_hwnd, WM_CHAR, data.cNewInput[0], 0);
+					PostMessage(m_hwndMain, WM_VRFWD_CHAR, data.cNewInput[0], 0);
 					break;
 				}
 			}
