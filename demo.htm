@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <script>
+    // from https://stackoverflow.com/questions/2368784/draw-on-html5-canvas-using-a-mouse
+
+    var out;
+    var ctx;
+    var start = Date.now().valueOf();
+    // last known position
+    var pos = { x: 0, y: 0 };
+
+    // new position from mouse event
+    function setPosition(e) {
+      pos.x = e.clientX;
+      pos.y = e.clientY;
+
+    }
+
+    function draw(e) {
+      // mouse left button must be pressed
+      if (e.buttons !== 1) return;
+
+      ctx.beginPath(); // begin
+
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#c0392b';
+
+      ctx.moveTo(pos.x, pos.y); // from
+      setPosition(e);
+      ctx.lineTo(pos.x, pos.y); // to
+
+      ctx.stroke(); // draw it!
+    }
+
+    function verboseEvent(e) {
+      var elem = document.getElementById("out_" + e.type);
+
+      elem.innerText = e.type + " |";
+
+      if (e.screenX !== undefined) {
+        elem.innerText += " (" +
+          e.screenX + ", " +
+          e.screenY + ") | (" +
+          e.clientX + ", " +
+          e.clientY + ") |";
+      }
+      elem.innerText += " " + (Date.now().valueOf() - start) + " ms";
+    }
+
+    function setupEventOutput(type, eventCallback) {
+      eventCallback = eventCallback || verboseEvent;
+      // add an element
+      var elem = document.createElement("code");
+      elem.id = "out_" + type;
+      elem.innerText = type;
+      out.appendChild(elem);
+      out.appendChild(document.createElement("br"));
+
+      // add the event
+      document.addEventListener(type, verboseEvent);
+    }
+
+    function setupcanvas() {
+      document.addEventListener('mousedown', draw);
+
+      // create canvas element and append it to document body
+      //var canvas = document.getElementsByTagName("canvas")[0];
+      //canvas.width = 600;
+      //canvas.height = 200;
+
+      // some hotfixes...
+      document.body.style.margin = 0;
+
+      // get canvas 2D context and set him correct size
+      //ctx = canvas.getContext('2d');
+      out = document.getElementById("output");
+
+      [
+        "mousemove", "mouseout", "mouseover",
+        "click", "dblclick", "mousedown", "mouseup", "wheel",
+        //"mouseenter", "mouseleave",
+        "blur", "focus",
+        "keydown", "keyup", "keypress"
+      ].forEach(setupEventOutput);
+
+      /*
+      // set focus until we can control when the keyboard appears
+      document.getElementsByTagName("textarea")[0].focus();
+
+      setTimeout(
+        function () { window.scrollTo(0, 300); },
+        2000
+      );
+      */
+    }
+
+  </script>
+</head>
+
+<body onload="setupcanvas()" style="font-family: monospace; font-size:x-large">
+  <!--<canvas style="border: 2px solid green; width:600px; height: 200px; "></canvas>
+  <br />-->
+  sample links: 
+  <a href="http://mozilla.org" style="font-size:x-large">mozilla link</a> | 
+  <a href="https://webvr.info/samples/03-vr-presentation.html" style="font-size:x-large">immersive sample</a> |
+  <a href="https://en.wikipedia.org/wiki/Main_Page" style="font-size:x-large">wikipedia</a>
+  <hr />
+  bring focus here and use button to show virtual keyboard:
+  <br />
+  <textarea style="border: 2px solid gray; width: 700px; height: 100px;font-size:x-large"></textarea>
+  <br />
+  <div id="output" style="border: 2px solid blue; width: 700px; font-size:x-large"></div>
+  <br />
+  <div style="border: 2px solid orange; width: 700px; height: 2000px; background-image: linear-gradient(orange, gray);">
+    scroll this here
+  </div>
+</body>
+</html>
