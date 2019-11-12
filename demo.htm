@@ -62,6 +62,20 @@
       document.addEventListener(type, verboseEvent);
     }
 
+    function tryAllPermissions() {
+      navigator.geolocation.getCurrentPosition(
+        () => console.trace("loc:allow"),
+        () => console.trace("loc:deny"));
+      navigator.mediaDevices.getUserMedia({audio:true}).then(
+        () => console.trace("mic:allow"),
+        () => console.trace("mic:deny")
+      );
+      navigator.mediaDevices.getUserMedia({video:true}).then(
+        () => console.trace("cam:allow"),
+        () => console.trace("cam:deny")
+      )
+    }
+
     function setupcanvas() {
       document.addEventListener('mousedown', draw);
 
@@ -76,6 +90,8 @@
       // get canvas 2D context and set him correct size
       //ctx = canvas.getContext('2d');
       out = document.getElementById("output");
+
+      document.getElementById("perms").addEventListener("click", tryAllPermissions);
 
       [
         "mousemove", "mouseout", "mouseover",
@@ -107,6 +123,8 @@
   <a href="https://webvr.info/samples/03-vr-presentation.html" style="font-size:x-large">immersive sample</a> |
   <a href="https://en.wikipedia.org/wiki/Main_Page" style="font-size:x-large">wikipedia</a> |
   <a href="https://sketchfab.com/" style="font-size:x-large">sketchfab</a>
+  <br>
+  <button id="perms">check all permissions</button>
   <hr />
   bring focus here and use button to show virtual keyboard:
   <br />
