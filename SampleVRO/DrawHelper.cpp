@@ -292,7 +292,7 @@ void DrawHelper::Draw(HWND hwndMain, HWND hwndOVR, WCHAR* pchTypeBuffer, UINT cc
 	{
 		pRenderTarget->BeginDraw();
 
-		pRenderTarget->Clear( D2D1::ColorF(D2D1::ColorF::LightGray) );
+		pRenderTarget->Clear( D2D1::ColorF(D2D1::ColorF::LightGray, .5) );
 		pRenderTarget->FillEllipse(ellipse, pBrush);
 
 		D2D1_SIZE_F renderTargetSize = pRenderTarget->GetSize();

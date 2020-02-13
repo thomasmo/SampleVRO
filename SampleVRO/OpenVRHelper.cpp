@@ -15,6 +15,7 @@
 
 // Class-wide override to enable calls made to OpenVR
 bool OpenVRHelper::s_isEnabled = true;
+bool               s_useDashboard = false;
 
 void OpenVRHelper::Init(HWND hwndMain, HWND hwndOvr, RECT rcHwnd)
 {
@@ -55,12 +56,24 @@ void OpenVRHelper::CreateOverlay()
 			std::string sKey = std::string("SampleVRO");
 			vr::VROverlayError overlayError = vr::VROverlayError_None;
 
-			overlayError = vr::VROverlay()->CreateDashboardOverlay(
-				sKey.c_str(),
-				sKey.c_str(),
-				&m_ulOverlayHandle,
-				&m_ulOverlayThumbnailHandle
-			);
+      if (s_useDashboard) {
+			  overlayError = vr::VROverlay()->CreateDashboardOverlay(
+				  sKey.c_str(),
+				  sKey.c_str(),
+				  &m_ulOverlayHandle,
+				  &m_ulOverlayThumbnailHandle
+			  );
+      }
+      else {
+        // https://www.reddit.com/r/SteamVR/comments/dtmfbt/openvr_overlay_sample_application/
+        overlayError = vr::VROverlay()->CreateOverlay(
+          sKey.c_str(),
+          sKey.c_str(),
+          &m_ulOverlayHandle
+        );
+      }
+
+
 
 			if (overlayError == vr::VROverlayError_None)
 			{
@@ -81,7 +94,21 @@ void OpenVRHelper::CreateOverlay()
 								overlayError = vr::VROverlay()->SetOverlayMouseScale(m_ulOverlayHandle, &vecWindowSize);
 								if (overlayError == vr::VROverlayError_None)
 								{
-									vr::VROverlay()->ShowDashboard(rgchKey);
+                  if (s_useDashboard) {
+                    vr::VROverlay()->ShowDashboard(rgchKey);
+                  }
+                  else {
+                    overlayError = vr::VROverlay()->ShowOverlay(m_ulOverlayHandle);
+                    if (overlayError == vr::VROverlayError_None) {
+                      vr::HmdMatrix34_t transform = {
+                        1.0f, 0.0f, 0.0f, 0.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 0.0f, 1.0f, -2.0f
+                      };
+                      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(m_ulOverlayHandle, vr::TrackingUniverseStanding, &transform);
+                    }
+                  }
+									
 
 									// Note: bUseMinimalMode set to true so that each char arrives as an event.
 									vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
